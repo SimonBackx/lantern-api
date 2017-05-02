@@ -1,9 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
+	//"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 	"net/http"
 )
 
@@ -15,25 +16,39 @@ func queriesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//c := session.DB(database).C(collection)
-	//err := c.Find(query).One(&result)
-	query := NewQuery("Testquery", NewOperatorQuery(NewOperatorQuery(NewRegexpQuery("[0-9]+€"), OrOperator, NewRegexpQuery("[0-9]+$")), AndOperator, NewRegexpQuery("\\w+@ey.com")))
-	fmt.Println(query.String())
-	str, err := query.JSON()
+	c := mongo.DB("lantern").C("queries")
+	var result []interface{}
+	err := c.Find(nil).Sort("-createdOn").Limit(100).All(&result)
 	if err != nil {
-		fmt.Fprintf(w, err.Error())
-	} else {
-		var original *Query
-		err = json.Unmarshal(str, &original)
-		if err == nil {
-			fmt.Println(original.String())
-		} else {
-			fmt.Println(err.Error())
-		}
-		var out bytes.Buffer
-		json.Indent(&out, str, "", "\t")
-		out.WriteTo(w)
-
-		//fmt.Fprintf(w, "%s", json)
+		internalErrorHandler(w, r, err)
+		return
 	}
+
+	fmt.Fprintf(w, "[")
+	for i, res := range result {
+		jsonValue, err := bson.MarshalJSON(res)
+		if err != nil {
+			internalErrorHandler(w, r, err)
+			return
+		}
+
+		var query *Query
+		err = json.Unmarshal(jsonValue, &query)
+		if err != nil {
+			internalErrorHandler(w, r, err)
+			return
+		}
+
+		str, err := query.JSON()
+		if err != nil {
+			internalErrorHandler(w, r, err)
+			return
+		}
+		if i > 0 {
+			fmt.Fprintf(w, ",")
+		}
+		fmt.Fprintf(w, "%s", str)
+
+	}
+	fmt.Fprintf(w, "]")
 }

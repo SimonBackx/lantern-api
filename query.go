@@ -228,13 +228,13 @@ func (q *TextQuery) MarshalJSON() ([]byte, error) {
 
 type Query struct {
 	Name      string      `json:"name"`
-	CreatedOn *time.Time  `json:"createdOn"`
+	CreatedOn time.Time   `json:"createdOn"`
 	Query     QueryAction `json:"root"`
 }
 
 func NewQuery(name string, q QueryAction) *Query {
 	now := time.Now()
-	return &Query{Name: name, CreatedOn: &now, Query: q}
+	return &Query{Name: name, CreatedOn: now, Query: q}
 }
 
 func (q *Query) UnmarshalJSON(b []byte) error {

@@ -12,6 +12,12 @@ func defaultHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Invalid request.")
 }
 
+func internalErrorHandler(w http.ResponseWriter, r *http.Request, err error) {
+	w.WriteHeader(http.StatusInternalServerError)
+	fmt.Fprintf(w, "Internal error.")
+	fmt.Println(err.Error())
+}
+
 func connectToMongo() *mgo.Session {
 	url, found := os.LookupEnv("MONGO_URL")
 
