@@ -1,4 +1,26 @@
 version: '3'
 services:
-  mongodb:
-    
+  mongo:
+    image: 'mongo:3.4.4'
+    ports:
+      - '27017:27017'
+    volumes:
+      - 'mongo:/data/db'
+  golang:
+    tty: true
+    stdin_open: true
+    build: ./docker
+    image: 'golang-ubuntu'
+    depends_on:
+      - 'mongo'
+    ports:
+      - '8080:8080'
+    volumes:
+      - './build:/lantern'
+    command: ./lantern/api
+    environment:
+      - API_KEY=secret
+      - API_USER=secret
+      - MONGO_URL=mongodb://mongo:27017
+volumes:
+  mongo:

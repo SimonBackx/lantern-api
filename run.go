@@ -2,78 +2,35 @@ package main
 
 import (
 	"fmt"
+	"gopkg.in/mgo.v2"
 	"net/http"
-	"strconv"
+	"os"
 )
-
-var users = make(map[string]string, 0)
-
-func checkAuthentication(w http.ResponseWriter, r *http.Request) bool {
-	user := r.Header.Get("X-API-USER")
-	key := r.Header.Get("X-API-KEY")
-
-	if user == "" || key == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintf(w, "Not authorized.")
-		return false
-	}
-
-	foundKey, found := users[user]
-	if !found {
-		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintf(w, "Not authorized.")
-		w.WriteHeader(http.StatusUnauthorized)
-		return false
-	}
-
-	if foundKey != key {
-		w.WriteHeader(http.StatusUnauthorized)
-		fmt.Fprintf(w, "Not authorized.")
-		return false
-	}
-
-	return true
-}
 
 func defaultHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotFound)
 	fmt.Fprintf(w, "Invalid request.")
 }
 
-/**
- * /result/{id}
- */
-func resultHandler(w http.ResponseWriter, r *http.Request) {
-	if !checkAuthentication(w, r) {
-		return
-	}
+func connectToMongo() *mgo.Session {
+	url, found := os.LookupEnv("MONGO_URL")
 
-	_id := r.URL.Path[len("/result/"):]
-	id, err := strconv.Atoi(_id)
-	if err != nil {
-		// invalid number
-		defaultHandler(w, r)
-		return
+	if !found {
+		fmt.Println("MONGO_URL not set in environment variables.")
+	} else {
+		fmt.Printf("MONGO_URL = %s\n", url)
+		session, err := mgo.Dial(url)
+		if err != nil {
+			fmt.Println(err.Error())
+		} else {
+			fmt.Printf("Connected to MongoDB\n")
+			return session
+		}
 	}
-
-	fmt.Fprintf(w, "ResultRequest. id=%v", id)
+	return nil
 }
 
-/**
- * /result
- */
-func newResultHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		defaultHandler(w, r)
-		return
-	}
-
-	if !checkAuthentication(w, r) {
-		return
-	}
-
-	fmt.Fprintf(w, "New result")
-}
+var mongo *mgo.Session
 
 func run(quit chan bool, finished chan bool) {
 	defer func() {
@@ -81,19 +38,33 @@ func run(quit chan bool, finished chan bool) {
 	}()
 
 	// Register test user
-	users["default"] = "default"
+	key, found := os.LookupEnv("API_KEY")
+	user, found2 := os.LookupEnv("API_USER")
+	if found && found2 {
+		users[user] = key
+		fmt.Printf("Default user: %v=%v\n", user, key)
+	} else {
+		fmt.Printf("Default user not set.\n")
+	}
 
 	server := &http.Server{Addr: ":8080"}
 	http.HandleFunc("/", defaultHandler)
 	http.HandleFunc("/result/", resultHandler)
 	http.HandleFunc("/result", newResultHandler)
+	http.HandleFunc("/results/", resultsHandler)
+	http.HandleFunc("/queries", queriesHandler)
 
 	go func() {
 		server.ListenAndServe()
 	}()
 
+	mongo = connectToMongo()
+
 	// Wait for finish signal
 	<-quit
+	if mongo != nil {
+		mongo.Close()
+	}
 
 	server.Shutdown(nil)
 }
