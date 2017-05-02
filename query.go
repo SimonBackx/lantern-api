@@ -33,14 +33,12 @@ func UnmarshalQueryAction(b json.RawMessage, destination *QueryAction) error {
 	var m map[string]*json.RawMessage
 	err := json.Unmarshal(b, &m)
 	if err != nil {
-		fmt.Println("error pos 4")
 		return err
 	}
 
 	var t string
 	err = json.Unmarshal(*m["type"], &t)
 	if err != nil {
-		fmt.Println("error pos 7")
 		return err
 	}
 
@@ -49,7 +47,6 @@ func UnmarshalQueryAction(b json.RawMessage, destination *QueryAction) error {
 		var r RegexpQuery
 		err := json.Unmarshal(b, &r)
 		if err != nil {
-			fmt.Println("error pos 5")
 			return err
 		}
 		*destination = &r
@@ -58,7 +55,22 @@ func UnmarshalQueryAction(b json.RawMessage, destination *QueryAction) error {
 		var o OperatorQuery
 		err := json.Unmarshal(b, &o)
 		if err != nil {
-			fmt.Println("error pos 6")
+			return err
+		}
+		*destination = &o
+		return nil
+	case "text":
+		var o TextQuery
+		err := json.Unmarshal(b, &o)
+		if err != nil {
+			return err
+		}
+		*destination = &o
+		return nil
+	case "list":
+		var o ListQuery
+		err := json.Unmarshal(b, &o)
+		if err != nil {
 			return err
 		}
 		*destination = &o
@@ -175,8 +187,43 @@ func (q *RegexpQuery) String() string {
 }
 
 type ListQuery struct {
+	List []string
 }
+
+func (q *ListQuery) query(str *string) bool {
+	// todo: not implemented
+	return false
+}
+
+func (q *ListQuery) String() string {
+	return fmt.Sprintf("List[%v]", len(q.List))
+}
+
+func (q *ListQuery) MarshalJSON() ([]byte, error) {
+	m := make(map[string]interface{})
+	m["list"] = q.List
+	m["type"] = "list"
+	return json.Marshal(m)
+}
+
 type TextQuery struct {
+	Text string
+}
+
+func (q *TextQuery) query(str *string) bool {
+	// todo: not implemented
+	return false
+}
+
+func (q *TextQuery) String() string {
+	return fmt.Sprintf("\"%s\"", q.Text)
+}
+
+func (q *TextQuery) MarshalJSON() ([]byte, error) {
+	m := make(map[string]string)
+	m["text"] = q.Text
+	m["type"] = "text"
+	return json.Marshal(m)
 }
 
 type Query struct {
@@ -200,19 +247,16 @@ func (q *Query) UnmarshalJSON(b []byte) error {
 
 	err = json.Unmarshal(*objMap["name"], &q.Name)
 	if err != nil {
-		fmt.Println("error pos 1")
 		return err
 	}
 
 	err = json.Unmarshal(*objMap["createdOn"], &q.CreatedOn)
 	if err != nil {
-		fmt.Println("error pos 2")
 		return err
 	}
 
 	err = UnmarshalQueryAction(*objMap["root"], &q.Query)
 	if err != nil {
-		fmt.Println("error pos 3")
 		return err
 	}
 	return nil
