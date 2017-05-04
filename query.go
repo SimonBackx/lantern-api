@@ -239,15 +239,34 @@ func (q *TextQuery) MarshalJSON() ([]byte, error) {
 }
 
 type Query struct {
-	Id        *string     `json:"_id"`
-	Name      string      `json:"name"`
-	CreatedOn time.Time   `json:"createdOn"`
-	Query     QueryAction `json:"root"`
+	Id        *string
+	Name      string
+	CreatedOn time.Time
+	Query     QueryAction
 }
 
 func NewQuery(name string, q QueryAction) *Query {
 	now := time.Now()
 	return &Query{Name: name, CreatedOn: now, Query: q}
+}
+
+func (q *Query) MarshalJSON() ([]byte, error) {
+	m := make(map[string]interface{})
+	if q.Id != nil {
+		m["_id"] = *q.Id
+	}
+	m["name"] = q.Name
+	m["createdOn"] = q.CreatedOn
+	m["root"] = q.Query
+	return json.Marshal(m)
+}
+
+func (q *Query) MarshalJSONWithoutId() ([]byte, error) {
+	m := make(map[string]interface{})
+	m["name"] = q.Name
+	m["createdOn"] = q.CreatedOn
+	m["root"] = q.Query
+	return json.Marshal(m)
 }
 
 func (q *Query) UnmarshalJSON(b []byte) error {

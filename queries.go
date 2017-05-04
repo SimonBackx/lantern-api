@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	//"gopkg.in/mgo.v2"
-	//"gopkg.in/mgo.v2/bson"
+	"gopkg.in/mgo.v2/bson"
 	"io/ioutil"
 	"net/http"
 )
@@ -92,20 +92,48 @@ func newQueryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if query.Id == nil {
-		// new query
-		fmt.Fprintf(w, "New query.")
-	} else {
-		fmt.Fprintf(w, "Update query.")
+	jsonValue, err := query.MarshalJSONWithoutId()
+	if err != nil {
+		internalErrorHandler(w, r, err)
+		return
 	}
 
-	/*c := mongo.DB("lantern").C("queries")
-	err = c.Insert(query)
+	var result interface{}
+	err = bson.UnmarshalJSON(jsonValue, &result)
 
 	if err != nil {
 		internalErrorHandler(w, r, err)
 		return
-	}*/
+	}
+
+	c := mongo.DB("lantern").C("queries")
+	if query.Id == nil {
+		// new query
+		fmt.Println("New query.")
+		err = c.Insert(result)
+
+		if err != nil {
+			internalErrorHandler(w, r, err)
+			return
+		}
+
+	} else {
+		fmt.Printf("Update query / _id = %v\n", *query.Id)
+
+		err = c.UpdateId(bson.ObjectIdHex(*query.Id), result)
+		if err != nil {
+			internalErrorHandler(w, r, err)
+			return
+		}
+	}
+
+	/*
+
+
+		if err != nil {
+			internalErrorHandler(w, r, err)
+			return
+		}*/
 
 	fmt.Fprintf(w, "Success")
 }
