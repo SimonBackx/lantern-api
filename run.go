@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/gorilla/mux"
 	"gopkg.in/mgo.v2"
 	"net/http"
 	"os"
@@ -22,17 +23,18 @@ func connectToMongo() *mgo.Session {
 	url, found := os.LookupEnv("MONGO_URL")
 
 	if !found {
-		fmt.Println("MONGO_URL not set in environment variables.")
-	} else {
-		fmt.Printf("MONGO_URL = %s\n", url)
-		session, err := mgo.Dial(url)
-		if err != nil {
-			fmt.Println(err.Error())
-		} else {
-			fmt.Printf("Connected to MongoDB\n")
-			return session
-		}
+		// default
+		url = "mongodb://localhost:27017"
 	}
+	fmt.Printf("MONGO_URL = %s\n", url)
+	session, err := mgo.Dial(url)
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		fmt.Printf("Connected to MongoDB\n")
+		return session
+	}
+
 	return nil
 }
 
@@ -53,12 +55,16 @@ func run(quit chan bool, finished chan bool) {
 		fmt.Printf("Default user not set.\n")
 	}
 
+	r := mux.NewRouter()
+	r.HandleFunc("/", defaultHandler)
+	r.HandleFunc("/result/", resultHandler)
+	r.HandleFunc("/result", newResultHandler)
+	r.HandleFunc("/results/", resultsHandler)
+	r.HandleFunc("/queries", queriesHandler)
+	r.HandleFunc("/query", newQueryHandler)
+
+	http.Handle("/", &Server{r})
 	server := &http.Server{Addr: ":8080"}
-	http.HandleFunc("/", defaultHandler)
-	http.HandleFunc("/result/", resultHandler)
-	http.HandleFunc("/result", newResultHandler)
-	http.HandleFunc("/results/", resultsHandler)
-	http.HandleFunc("/queries", queriesHandler)
 
 	go func() {
 		server.ListenAndServe()

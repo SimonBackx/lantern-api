@@ -23,7 +23,6 @@ func checkAuthentication(w http.ResponseWriter, r *http.Request) bool {
 	if !found {
 		w.WriteHeader(http.StatusUnauthorized)
 		fmt.Fprintf(w, "Not authorized.")
-		w.WriteHeader(http.StatusUnauthorized)
 		return false
 	}
 

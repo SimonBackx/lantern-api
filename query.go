@@ -121,9 +121,17 @@ func (o *OperatorQuery) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
+	if objMap["operator"] == nil || objMap["first"] == nil || objMap["last"] == nil {
+		return fmt.Errorf("Json: OperatorQuery's operator, first and/or last not set")
+	}
+
 	err = json.Unmarshal(*objMap["operator"], &o.Operator)
 	if err != nil {
 		return err
+	}
+
+	if o.Operator != "AND" && o.Operator != "OR" {
+		return fmt.Errorf("Json: OperatorQuery invalid operator '%v'", o.Operator)
 	}
 
 	err = UnmarshalQueryAction(*objMap["first"], &o.First)
@@ -164,6 +172,10 @@ func (o *RegexpQuery) UnmarshalJSON(b []byte) error {
 	err := json.Unmarshal(b, &objMap)
 	if err != nil {
 		return err
+	}
+
+	if len(objMap["regexp"]) < 1 {
+		return fmt.Errorf("Empty regexp not allowed")
 	}
 
 	o.Regexp, err = regexp.Compile(objMap["regexp"])
@@ -227,6 +239,7 @@ func (q *TextQuery) MarshalJSON() ([]byte, error) {
 }
 
 type Query struct {
+	Id        *string     `json:"_id"`
 	Name      string      `json:"name"`
 	CreatedOn time.Time   `json:"createdOn"`
 	Query     QueryAction `json:"root"`
@@ -238,6 +251,7 @@ func NewQuery(name string, q QueryAction) *Query {
 }
 
 func (q *Query) UnmarshalJSON(b []byte) error {
+
 	// First, deserialize everything into a map of map
 	var objMap map[string]*json.RawMessage
 	err := json.Unmarshal(b, &objMap)
@@ -245,14 +259,31 @@ func (q *Query) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
+	if objMap["name"] == nil || objMap["root"] == nil {
+		return fmt.Errorf("name and/or root not set")
+	}
+
 	err = json.Unmarshal(*objMap["name"], &q.Name)
 	if err != nil {
 		return err
 	}
 
-	err = json.Unmarshal(*objMap["createdOn"], &q.CreatedOn)
-	if err != nil {
-		return err
+	if objMap["_id"] != nil {
+		var id string
+		err = json.Unmarshal(*objMap["_id"], &id)
+		if err != nil {
+			return err
+		}
+		q.Id = &id
+	}
+
+	if objMap["createdOn"] != nil {
+		err = json.Unmarshal(*objMap["createdOn"], &q.CreatedOn)
+		if err != nil {
+			return err
+		}
+	} else {
+		q.CreatedOn = time.Now()
 	}
 
 	err = UnmarshalQueryAction(*objMap["root"], &q.Query)
