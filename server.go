@@ -49,3 +49,39 @@ func (s *Server) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	// Lets Gorilla work
 	s.r.ServeHTTP(rw, req)
 }
+
+type FileServer struct {
+	r http.Handler
+}
+
+func (s *FileServer) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	defer func() {
+		if re := recover(); re != nil {
+			fmt.Println("Recovered panic: ", re)
+
+			var err error
+			switch re := re.(type) {
+			case string:
+				err = errors.New(re)
+			case error:
+				err = re
+			default:
+				err = errors.New("Unknown error")
+			}
+			internalErrorHandler(rw, req, err)
+		}
+	}()
+
+	fmt.Printf("%s %s\n", req.Method, req.URL.String())
+
+	// Don't allow external resources
+	rw.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'")
+
+	// Stop here if its Preflighted OPTIONS request
+	if req.Method != "GET" {
+		return
+	}
+
+	// Lets Gorilla work
+	s.r.ServeHTTP(rw, req)
+}
