@@ -57,11 +57,11 @@ func run(quit chan bool, finished chan bool) {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/", defaultHandler)
-	r.HandleFunc("/result/", resultHandler)
-	r.HandleFunc("/result", newResultHandler)
-	r.HandleFunc("/results/", resultsHandler)
-	r.HandleFunc("/queries", queriesHandler)
-	r.HandleFunc("/query", newQueryHandler)
+	r.HandleFunc("/result/{id}", resultHandler).Methods("GET")
+	r.HandleFunc("/result", newResultHandler).Methods("POST")
+	r.HandleFunc("/results/{queryId}", resultsHandler).Methods("GET")
+	r.HandleFunc("/queries", queriesHandler).Methods("GET")
+	r.HandleFunc("/query", newQueryHandler).Methods("POST")
 
 	http.Handle("/", &Server{r})
 	server := &http.Server{Addr: ":8080"}

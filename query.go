@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"gopkg.in/mgo.v2/bson"
 	"regexp"
 	"time"
 )
@@ -239,10 +240,10 @@ func (q *TextQuery) MarshalJSON() ([]byte, error) {
 }
 
 type Query struct {
-	Id        *string
-	Name      string
-	CreatedOn time.Time
-	Query     QueryAction
+	Id        bson.ObjectId `json:"_id,omitempty" bson:"_id,omitempty"`
+	Name      string        `json:"name" bson:"name"`
+	CreatedOn time.Time     `json:"createdOn" bson:"createdOn"`
+	Query     QueryAction   `json:"root" bson:"root"`
 }
 
 func NewQuery(name string, q QueryAction) *Query {
@@ -250,11 +251,9 @@ func NewQuery(name string, q QueryAction) *Query {
 	return &Query{Name: name, CreatedOn: now, Query: q}
 }
 
-func (q *Query) MarshalJSON() ([]byte, error) {
+/*func (q *Query) MarshalJSON() ([]byte, error) {
 	m := make(map[string]interface{})
-	if q.Id != nil {
-		m["_id"] = *q.Id
-	}
+	m["_id"] = q.Id
 	m["name"] = q.Name
 	m["createdOn"] = q.CreatedOn
 	m["root"] = q.Query
@@ -267,7 +266,7 @@ func (q *Query) MarshalJSONWithoutId() ([]byte, error) {
 	m["createdOn"] = q.CreatedOn
 	m["root"] = q.Query
 	return json.Marshal(m)
-}
+}*/
 
 func (q *Query) UnmarshalJSON(b []byte) error {
 
@@ -293,7 +292,7 @@ func (q *Query) UnmarshalJSON(b []byte) error {
 		if err != nil {
 			return err
 		}
-		q.Id = &id
+		q.Id = bson.ObjectIdHex(id)
 	}
 
 	if objMap["createdOn"] != nil {

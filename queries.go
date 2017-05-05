@@ -2,9 +2,9 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	//"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+
+	"fmt"
 	"io/ioutil"
 	"net/http"
 )
@@ -13,10 +13,6 @@ import (
  * /queries
  */
 func queriesHandler(w http.ResponseWriter, r *http.Request) {
-	if !checkAuthentication(w, r) {
-		return
-	}
-
 	c := mongo.DB("lantern").C("queries")
 	var result []interface{}
 	err := c.Find(nil).Sort("-createdOn").Limit(100).All(&result)
@@ -32,58 +28,16 @@ func queriesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintf(w, "%s", jsonValue)
-
-	/*fmt.Fprintf(w, "[")
-	for i, res := range result {
-		jsonValue, err := json.Marshal(res)
-		if err != nil {
-			internalErrorHandler(w, r, err)
-			return
-		}
-
-		var query *Query
-		err = json.Unmarshal(jsonValue, &query)
-		if err != nil {
-			internalErrorHandler(w, r, err)
-			return
-		}
-
-		str, err := query.JSON()
-		if err != nil {
-			internalErrorHandler(w, r, err)
-			return
-		}
-		if i > 0 {
-			fmt.Fprintf(w, ",")
-		}
-		fmt.Fprintf(w, "%s", str)
-
-	}
-	fmt.Fprintf(w, "]")*/
 }
 
 /**
  * /query
  */
 func newQueryHandler(w http.ResponseWriter, r *http.Request) {
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("Recovered panic: ", r)
-		}
-	}()
-
-	if r.Method != "POST" {
-		defaultHandler(w, r)
-		return
-	}
-
-	if !checkAuthentication(w, r) {
-		return
-	}
 
 	str, err := ioutil.ReadAll(r.Body)
 
-	var query *Query
+	var query Query
 	err = json.Unmarshal(str, &query)
 
 	if err != nil {
@@ -92,25 +46,28 @@ func newQueryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonValue, err := query.MarshalJSONWithoutId()
+	// todo: verify query
+
+	// Omzetten naar interface{}, anders krijgen we error
+	// omdat we de unmarshal functie van bson niet kunnen overschrijven
+	var clean interface{}
+	jsonValue, err := json.Marshal(query)
 	if err != nil {
 		internalErrorHandler(w, r, err)
 		return
 	}
 
-	var result interface{}
-	err = bson.UnmarshalJSON(jsonValue, &result)
-
+	err = bson.UnmarshalJSON(jsonValue, &clean)
 	if err != nil {
 		internalErrorHandler(w, r, err)
 		return
 	}
 
 	c := mongo.DB("lantern").C("queries")
-	if query.Id == nil {
+	if query.Id == "" {
 		// new query
 		fmt.Println("New query.")
-		err = c.Insert(result)
+		err = c.Insert(clean)
 
 		if err != nil {
 			internalErrorHandler(w, r, err)
@@ -118,22 +75,14 @@ func newQueryHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 	} else {
-		fmt.Printf("Update query / _id = %v\n", *query.Id)
+		fmt.Printf("Update query / _id = %s\n", query.Id)
 
-		err = c.UpdateId(bson.ObjectIdHex(*query.Id), result)
+		err = c.UpdateId(query.Id, clean)
 		if err != nil {
 			internalErrorHandler(w, r, err)
 			return
 		}
 	}
-
-	/*
-
-
-		if err != nil {
-			internalErrorHandler(w, r, err)
-			return
-		}*/
 
 	fmt.Fprintf(w, "Success")
 }

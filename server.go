@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
 	"net/http"
@@ -11,6 +12,23 @@ type Server struct {
 }
 
 func (s *Server) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	defer func() {
+		if re := recover(); re != nil {
+			fmt.Println("Recovered panic: ", re)
+
+			var err error
+			switch re := re.(type) {
+			case string:
+				err = errors.New(re)
+			case error:
+				err = re
+			default:
+				err = errors.New("Unknown error")
+			}
+			internalErrorHandler(rw, req, err)
+		}
+	}()
+
 	fmt.Printf("%s %s\n", req.Method, req.URL.String())
 
 	if origin := req.Header.Get("Origin"); origin != "" {
@@ -23,6 +41,11 @@ func (s *Server) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	if req.Method == "OPTIONS" {
 		return
 	}
+
+	if !checkAuthentication(rw, req) {
+		return
+	}
+
 	// Lets Gorilla work
 	s.r.ServeHTTP(rw, req)
 }
