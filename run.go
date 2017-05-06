@@ -59,6 +59,7 @@ func run(quit chan bool, finished chan bool) {
 	r.HandleFunc("/api/result/{id}", resultHandler).Methods("GET")
 	r.HandleFunc("/api/result", newResultHandler).Methods("POST")
 	r.HandleFunc("/api/results/{queryId}", resultsHandler).Methods("GET")
+	r.HandleFunc("/api/results/{queryId}", deleteResultsHandler).Methods("DELETE")
 	r.HandleFunc("/api/queries", queriesHandler).Methods("GET")
 	r.HandleFunc("/api/query", newQueryHandler).Methods("POST")
 	r.HandleFunc("/api/query/{queryId}", deleteQueryHandler).Methods("DELETE")

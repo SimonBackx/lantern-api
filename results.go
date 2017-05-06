@@ -59,6 +59,12 @@ func resultsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		resultCount := 0
+		for _, val := range result {
+			resultCount += val.Count
+		}
+		SetResultCount(queryIdBson, resultCount)
+
 		fmt.Fprintf(w, "%s", jsonValue)
 		return
 	}
@@ -151,6 +157,7 @@ func newResultHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		IncreaseResultCount(result.QueryId)
 	} else {
 		fmt.Printf("Update result / _id = %v\n", result.Id)
 
@@ -162,4 +169,38 @@ func newResultHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintf(w, "Success")
+}
+
+/**
+ * DELETE /results/{queryid}[?host=...]
+ */
+func deleteResultsHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	queryId, found := vars["queryId"]
+	if !found {
+		internalErrorHandler(w, r, fmt.Errorf("queryId not set"))
+		return
+	}
+
+	queryIdBson := bson.ObjectIdHex(queryId)
+	queryValues := r.URL.Query()
+	hostArr, found := queryValues["host"]
+	var q bson.M
+	if !found || len(hostArr) == 0 {
+		q = bson.M{"queryId": queryIdBson}
+	} else {
+		q = bson.M{"queryId": queryIdBson, "host": hostArr[0]}
+	}
+
+	// results deleten
+	resultsCollection := mongo.DB("lantern").C("results")
+	info, err := resultsCollection.RemoveAll(q)
+	if err != nil {
+		internalErrorHandler(w, r, err)
+		return
+	}
+	DecreaseResultCount(queryIdBson, info.Removed)
+
+	fmt.Fprintf(w, "ok")
 }

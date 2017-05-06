@@ -10,16 +10,63 @@ import (
 	"net/http"
 )
 
+var cachedNewResults = make(map[string]int, 0)
+
+func IncreaseResultCount(id bson.ObjectId) {
+	str := id.String()
+	count, found := cachedNewResults[str]
+	if !found {
+		cachedNewResults[str] = 1
+	} else {
+		cachedNewResults[str] = count + 1
+	}
+}
+
+func DecreaseResultCount(id bson.ObjectId, c int) {
+	str := id.String()
+	count, found := cachedNewResults[str]
+	if found {
+		if c > count || c == -1 {
+			delete(cachedNewResults, str)
+		} else {
+			cachedNewResults[str] = count - c
+		}
+	}
+}
+
+func SetResultCount(id bson.ObjectId, count int) {
+	str := id.String()
+	cachedNewResults[str] = count
+}
+
 /**
  * /queries
  */
 func queriesHandler(w http.ResponseWriter, r *http.Request) {
 	c := mongo.DB("lantern").C("queries")
-	var result []interface{}
+	var result []bson.M
 	err := c.Find(nil).Sort("-createdOn").Limit(100).All(&result)
 	if err != nil {
 		internalErrorHandler(w, r, err)
 		return
+	}
+
+	for _, query := range result {
+		query["results"] = 0
+
+		id, found := query["_id"]
+		if !found {
+			continue
+		}
+		s, ok := id.(bson.ObjectId)
+		if !ok {
+			continue
+		}
+
+		count, found := cachedNewResults[s.String()]
+		if found {
+			query["results"] = count
+		}
 	}
 
 	jsonValue, err := json.Marshal(result)
@@ -115,6 +162,7 @@ func deleteQueryHandler(w http.ResponseWriter, r *http.Request) {
 	// results deleten
 	resultsCollection := mongo.DB("lantern").C("results")
 	resultsCollection.RemoveAll(bson.M{"queryId": queryIdBson})
+	DecreaseResultCount(queryIdBson, -1)
 
 	fmt.Fprintf(w, "ok")
 }
