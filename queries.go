@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/SimonBackx/lantern-crawler/queries"
+	"github.com/gorilla/mux"
 	"gopkg.in/mgo.v2/bson"
 	"io/ioutil"
 	"net/http"
@@ -34,8 +35,12 @@ func queriesHandler(w http.ResponseWriter, r *http.Request) {
  * /query
  */
 func newQueryHandler(w http.ResponseWriter, r *http.Request) {
-
 	str, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "Request interrupted")
+		return
+	}
 
 	var query queries.Query
 	err = json.Unmarshal(str, &query)
@@ -84,5 +89,32 @@ func newQueryHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	fmt.Fprintf(w, "Success")
+	fmt.Fprintf(w, "ok")
+}
+
+/**
+ * DELETE /query/{queryid}
+ */
+func deleteQueryHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	queryId, found := vars["queryId"]
+	if !found {
+		internalErrorHandler(w, r, fmt.Errorf("queryId not set"))
+		return
+	}
+
+	queryIdBson := bson.ObjectIdHex(queryId)
+	c := mongo.DB("lantern").C("queries")
+	err := c.RemoveId(queryIdBson)
+	if err != nil {
+		internalErrorHandler(w, r, err)
+		return
+	}
+
+	// results deleten
+	resultsCollection := mongo.DB("lantern").C("results")
+	resultsCollection.RemoveAll(bson.M{"queryId": queryIdBson})
+
+	fmt.Fprintf(w, "ok")
 }
