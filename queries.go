@@ -2,9 +2,9 @@ package main
 
 import (
 	"encoding/json"
-	"gopkg.in/mgo.v2/bson"
-
 	"fmt"
+	"github.com/SimonBackx/lantern-crawler/queries"
+	"gopkg.in/mgo.v2/bson"
 	"io/ioutil"
 	"net/http"
 )
@@ -37,7 +37,7 @@ func newQueryHandler(w http.ResponseWriter, r *http.Request) {
 
 	str, err := ioutil.ReadAll(r.Body)
 
-	var query Query
+	var query queries.Query
 	err = json.Unmarshal(str, &query)
 
 	if err != nil {
