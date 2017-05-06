@@ -67,11 +67,33 @@ func run(quit chan bool, finished chan bool) {
 
 	server := &http.Server{Addr: ":8080"}
 
-	go func() {
-		server.ListenAndServe()
-	}()
-
 	mongo = connectToMongo()
+
+	// Indexen aanmaken
+	if mongo != nil {
+		index := mgo.Index{
+			Key:        []string{"lastFound"},
+			Unique:     false,
+			DropDups:   false,
+			Background: false, // See notes.
+			Sparse:     true,  // Enkel als lastFound bestaat, anders niet terug geven als gesorteerd wordt
+		}
+		c := mongo.DB("lantern").C("results")
+		c.EnsureIndex(index)
+
+		index = mgo.Index{
+			Key:        []string{"host", "queryId"},
+			Unique:     false,
+			DropDups:   false,
+			Background: false, // See notes.
+			Sparse:     true,  // Enkel als host bestaat, anders niet terug geven als gesorteerd wordt
+		}
+		c.EnsureIndex(index)
+
+		go func() {
+			server.ListenAndServe()
+		}()
+	}
 
 	// Wait for finish signal
 	<-quit
