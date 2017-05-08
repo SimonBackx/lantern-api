@@ -56,6 +56,7 @@ func run(quit chan bool, finished chan bool) {
 	}
 
 	r := mux.NewRouter()
+	// Authenticated requests
 	r.HandleFunc("/api/result/{id}", resultHandler).Methods("GET")
 	r.HandleFunc("/api/result", newResultHandler).Methods("POST")
 	r.HandleFunc("/api/results/{queryId}", resultsHandler).Methods("GET")
@@ -63,7 +64,10 @@ func run(quit chan bool, finished chan bool) {
 	r.HandleFunc("/api/queries", queriesHandler).Methods("GET")
 	r.HandleFunc("/api/query", newQueryHandler).Methods("POST")
 	r.HandleFunc("/api/query/{queryId}", deleteQueryHandler).Methods("DELETE")
+	r.HandleFunc("/api/register", registerHandler).Methods("POST")
 
+	// Not authenticated
+	http.HandleFunc("/api/login", loginHandler)
 	http.Handle("/api/", &Server{r})
 	http.Handle("/", &FileServer{http.FileServer(http.Dir("/Users/Simon/Documents/uGent/Master/Masterproef/Repositories/lantern-frontend/public"))})
 
