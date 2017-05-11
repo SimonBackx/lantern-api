@@ -66,6 +66,8 @@ func run(quit chan bool, finished chan bool) {
 	r.HandleFunc("/api/query", newQueryHandler).Methods("POST")
 	r.HandleFunc("/api/query/{queryId}", deleteQueryHandler).Methods("DELETE")
 	r.HandleFunc("/api/register", registerHandler).Methods("POST")
+	r.HandleFunc("/api/stats", newStatsHandler).Methods("POST")
+	r.HandleFunc("/api/stats", statsHandler).Methods("GET")
 
 	// Not authenticated
 	http.HandleFunc("/api/login", loginHandler)
