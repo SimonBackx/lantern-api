@@ -52,6 +52,7 @@ func run(quit chan bool, finished chan bool) {
 		users[user] = key
 		fmt.Printf("Default user: %v=%v\n", user, key)
 	} else {
+		users["crawler"] = "wQMXWVm4Yab_SKRISvmbWtbWmuMwud7oVRA0JUYThNAYDN8XS8KG4I0uOAOhRUB43rGtbn4VOhyVds-OIseAHwDOUpex0aESRHXz03jbOdSvLRQN-_qTFYqvcU3paXFAEXMz48a7VlB"
 		fmt.Printf("Default user not set.\n")
 	}
 

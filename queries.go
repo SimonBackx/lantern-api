@@ -8,6 +8,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"io/ioutil"
 	"net/http"
+	"time"
 )
 
 var cachedNewResults = make(map[string]int, 0)
@@ -78,6 +79,13 @@ func queriesHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", jsonValue)
 }
 
+type CleanQuery struct {
+	Id        bson.ObjectId `json:"_id,omitempty" bson:"_id,omitempty"`
+	Name      string        `json:"name" bson:"name"`
+	CreatedOn time.Time     `json:"createdOn" bson:"createdOn"`
+	Query     interface{}   `json:"root" bson:"root"`
+}
+
 /**
  * /query
  */
@@ -102,7 +110,7 @@ func newQueryHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Omzetten naar interface{}, anders krijgen we error
 	// omdat we de unmarshal functie van bson niet kunnen overschrijven
-	var clean interface{}
+	var clean CleanQuery
 	jsonValue, err := json.Marshal(query)
 	if err != nil {
 		internalErrorHandler(w, r, err)

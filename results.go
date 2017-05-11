@@ -149,15 +149,34 @@ func newResultHandler(w http.ResponseWriter, r *http.Request) {
 
 	c := mongo.DB("lantern").C("results")
 	if result.Id == "" {
-		fmt.Println("New result.")
-		err = c.Insert(result)
+		fmt.Println("New result?")
+
+		// Eerst kijken of deze URL + host niet al bestaat
+		var foundResult queries.Result
+		err := c.Find(bson.M{"queryId": result.QueryId, "host": result.Host, "url": result.Url}).One(&foundResult)
 
 		if err != nil {
-			internalErrorHandler(w, r, err)
-			return
+			fmt.Println("New unique url for this query")
+
+			err = c.Insert(result)
+
+			if err != nil {
+				internalErrorHandler(w, r, err)
+				return
+			}
+
+			IncreaseResultCount(result.QueryId)
+		} else {
+			result.Id = foundResult.Id
+			fmt.Println("Already found this url for this query")
+
+			err = c.UpdateId(result.Id, result)
+			if err != nil {
+				internalErrorHandler(w, r, err)
+				return
+			}
 		}
 
-		IncreaseResultCount(result.QueryId)
 	} else {
 		fmt.Printf("Update result / _id = %v\n", result.Id)
 
