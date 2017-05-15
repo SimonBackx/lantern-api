@@ -125,6 +125,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	err = c.Find(bson.M{"username": credentials.Username}).One(&foundUser)
 
 	if err != nil {
+		fmt.Println(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Invalid credentials.")
 		return

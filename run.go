@@ -1,8 +1,10 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"github.com/gorilla/mux"
+	"golang.org/x/crypto/acme/autocert"
 	"gopkg.in/mgo.v2"
 	"net/http"
 	"os"
@@ -24,9 +26,10 @@ func connectToMongo() *mgo.Session {
 
 	if !found {
 		// default
-		url = "mongodb://localhost:27017"
+		url = "mongodb://lantern:jdgkl6234fsd1DSF08Fsdf@localhost:27017"
 	}
-	fmt.Printf("MONGO_URL = %s\n", url)
+
+	fmt.Printf("Connecting to MongoDB...\n")
 	session, err := mgo.Dial(url)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -44,6 +47,12 @@ func run(quit chan bool, finished chan bool) {
 	defer func() {
 		finished <- true
 	}()
+
+	certManager := autocert.Manager{
+		Prompt:     autocert.AcceptTOS,
+		HostPolicy: autocert.HostWhitelist("lantrn.xyz"), //your domain here
+		Cache:      autocert.DirCache("certs"),           //folder for storing certificates
+	}
 
 	// Register test user
 	key, found := os.LookupEnv("API_KEY")
@@ -72,9 +81,14 @@ func run(quit chan bool, finished chan bool) {
 	// Not authenticated
 	http.HandleFunc("/api/login", loginHandler)
 	http.Handle("/api/", &Server{r})
-	http.Handle("/", &FileServer{http.FileServer(http.Dir("/Users/Simon/Documents/uGent/Master/Masterproef/Repositories/lantern-frontend/public"))})
+	http.Handle("/", &FileServer{http.FileServer(http.Dir("/etc/lantern/www"))})
 
-	server := &http.Server{Addr: ":8080"}
+	server := &http.Server{
+		Addr: ":443",
+		TLSConfig: &tls.Config{
+			GetCertificate: certManager.GetCertificate,
+		},
+	}
 
 	mongo = connectToMongo()
 
@@ -100,7 +114,10 @@ func run(quit chan bool, finished chan bool) {
 		c.EnsureIndex(index)
 
 		go func() {
-			server.ListenAndServe()
+			err := server.ListenAndServeTLS("", "")
+			if err != nil {
+				fmt.Println(err.Error())
+			}
 		}()
 	}
 
@@ -110,5 +127,7 @@ func run(quit chan bool, finished chan bool) {
 		mongo.Close()
 	}
 
-	server.Shutdown(nil)
+	if server != nil {
+		server.Shutdown(nil)
+	}
 }

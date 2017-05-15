@@ -18,3 +18,4 @@
 build
 .build
 public/
+fabfile.pyc
