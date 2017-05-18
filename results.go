@@ -44,7 +44,6 @@ func resultsHandler(w http.ResponseWriter, r *http.Request) {
 		matching := bson.M{"queryId": queryIdBson}
 		if useCategory {
 			matching = bson.M{"queryId": queryIdBson, "category": categoryArr[0]}
-			fmt.Fprintf(w, "category = %s", categoryArr[0])
 		}
 
 		_, nogrouping := queryValues["nogrouping"]
