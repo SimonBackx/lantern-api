@@ -44,6 +44,7 @@ func resultsHandler(w http.ResponseWriter, r *http.Request) {
 		matching := bson.M{"queryId": queryIdBson}
 		if useCategory {
 			matching = bson.M{"queryId": queryIdBson, "category": categoryArr[0]}
+			fmt.Fprintf(w, "category = %s", categoryArr[0])
 		}
 
 		_, nogrouping := queryValues["nogrouping"]
@@ -232,7 +233,7 @@ func setResultCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = c.UpdateId(result.Id, bson.M{"$set": bson.M{"category": category}})
+	err = c.UpdateId(result.Id, bson.M{"$set": bson.M{"category": string(category)}})
 
 	if err == nil {
 		fmt.Fprintf(w, "Success")
@@ -290,6 +291,7 @@ func newResultHandler(w http.ResponseWriter, r *http.Request) {
 			// Onaanpasbare velden
 			result.Category = foundResult.Category
 			result.CreatedOn = foundResult.CreatedOn
+			result.Occurrences = foundResult.Occurrences + 1
 
 			err = c.UpdateId(result.Id, result)
 			if err != nil {
