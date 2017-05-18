@@ -35,12 +35,15 @@ func resultsHandler(w http.ResponseWriter, r *http.Request) {
 
 	queryValues := r.URL.Query()
 	hostArr, found := queryValues["host"]
-	category, useCategory := queryValues["category"]
+	categoryArr, useCategory := queryValues["category"]
+	if len(categoryArr) == 0 {
+		useCategory = false
+	}
 
 	if !found || len(hostArr) == 0 {
 		matching := bson.M{"queryId": queryIdBson}
 		if useCategory {
-			matching = bson.M{"queryId": queryIdBson, "category": category}
+			matching = bson.M{"queryId": queryIdBson, "category": categoryArr[0]}
 		}
 
 		_, nogrouping := queryValues["nogrouping"]
@@ -99,7 +102,7 @@ func resultsHandler(w http.ResponseWriter, r *http.Request) {
 
 	matching := bson.M{"queryId": queryIdBson, "host": host}
 	if useCategory {
-		matching = bson.M{"queryId": queryIdBson, "host": host, "category": category}
+		matching = bson.M{"queryId": queryIdBson, "host": host, "category": categoryArr[0]}
 	}
 
 	// Specifieke host
