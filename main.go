@@ -50,8 +50,8 @@ func main() {
 	flag.Parse()
 
 	svcConfig := &service.Config{
-		Name:        "Lantern-Api",
-		DisplayName: "Lantern-Api",
+		Name:        "lanternapi",
+		DisplayName: "Lantern API",
 		Description: "Cyber threat collection in the darkweb",
 	}
 

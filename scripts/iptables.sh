@@ -35,10 +35,7 @@ iptables -A INPUT -p tcp --sport 80 -m state --state ESTABLISHED     -j ACCEPT
 iptables -A OUTPUT  -p tcp --dport 443 -m state --state NEW,ESTABLISHED -j ACCEPT
 iptables -A INPUT -p tcp --sport 443 -m state --state ESTABLISHED     -j ACCEPT
 
-echo "Allowing incoming connections to 80,443"
-iptables -A INPUT  -p tcp --dport 80 -m state --state NEW,ESTABLISHED -j ACCEPT
-iptables -A OUTPUT -p tcp --sport 80 -m state --state ESTABLISHED     -j ACCEPT
-
+echo "Allowing incoming connections to 443"
 iptables -A INPUT  -p tcp --dport 443 -m state --state NEW,ESTABLISHED -j ACCEPT
 iptables -A OUTPUT -p tcp --sport 443 -m state --state ESTABLISHED     -j ACCEPT
 

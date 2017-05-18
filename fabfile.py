@@ -24,6 +24,11 @@ def upload():
     uploading_directory = "/etc/lantern"
 
     run("mkdir -p "+uploading_directory)
+    run("sudo systemctl stop lanternapi")
 
     with settings(hide('warnings', 'running', 'stdout')):
         rsync_project(remote_dir=uploading_directory, local_dir="build/api", delete=True)
+
+    run("sudo /etc/lantern/api -service uninstall")
+    run("sudo /etc/lantern/api -service install")
+    run("sudo /etc/lantern/api -service start")

@@ -68,7 +68,11 @@ func run(quit chan bool, finished chan bool) {
 	r := mux.NewRouter()
 	// Authenticated requests
 	r.HandleFunc("/api/result/{id}", resultHandler).Methods("GET")
+	r.HandleFunc("/api/result/{id}/set-category", setResultCategoryHandler).Methods("POST")
+
 	r.HandleFunc("/api/result", newResultHandler).Methods("POST")
+	r.HandleFunc("/api/result/{id}", deleteResultHandler).Methods("DELETE")
+
 	r.HandleFunc("/api/results/{queryId}", resultsHandler).Methods("GET")
 	r.HandleFunc("/api/results/{queryId}", deleteResultsHandler).Methods("DELETE")
 	r.HandleFunc("/api/queries", queriesHandler).Methods("GET")
@@ -106,6 +110,25 @@ func run(quit chan bool, finished chan bool) {
 
 		index = mgo.Index{
 			Key:        []string{"host", "queryId"},
+			Unique:     false,
+			DropDups:   false,
+			Background: false, // See notes.
+			Sparse:     true,  // Enkel als host bestaat, anders niet terug geven als gesorteerd wordt
+		}
+		c.EnsureIndex(index)
+
+		index = mgo.Index{
+			Key:        []string{"host", "url", "queryId"},
+			Unique:     false,
+			DropDups:   false,
+			Background: false, // See notes.
+			Sparse:     true,  // Enkel als host bestaat, anders niet terug geven als gesorteerd wordt
+		}
+		c.EnsureIndex(index)
+
+		c = mongo.DB("lantern").C("queries")
+		index = mgo.Index{
+			Key:        []string{"createdOn"},
 			Unique:     false,
 			DropDups:   false,
 			Background: false, // See notes.

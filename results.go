@@ -19,7 +19,7 @@ type AggregatedResult struct {
 }
 
 /**
- * /results/{queryId}[?host=...]
+ * /results/{queryId}[?host=...&category=...&nogrouping]
  */
 func resultsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -35,14 +35,41 @@ func resultsHandler(w http.ResponseWriter, r *http.Request) {
 
 	queryValues := r.URL.Query()
 	hostArr, found := queryValues["host"]
+	category, useCategory := queryValues["category"]
+
 	if !found || len(hostArr) == 0 {
+		matching := bson.M{"queryId": queryIdBson}
+		if useCategory {
+			matching = bson.M{"queryId": queryIdBson, "category": category}
+		}
+
+		_, nogrouping := queryValues["nogrouping"]
+
+		if nogrouping {
+			var result []queries.Result
+			err := c.Find(matching).Select(bson.M{"_id": 1, "queryId": 1, "lastFound": 1, "createdOn": 1, "occurrences": 1, "url": 1, "snippet": 1, "title": 1, "host": 1, "category": 1}).Sort("-lastFound").Limit(200).All(&result)
+			if err != nil {
+				internalErrorHandler(w, r, err)
+				return
+			}
+
+			jsonValue, err := json.Marshal(result)
+			if err != nil {
+				internalErrorHandler(w, r, err)
+				return
+			}
+
+			fmt.Fprintf(w, "%s", jsonValue)
+			return
+		}
 
 		// Accumuleren
 		pipe := c.Pipe(
 			[]bson.M{
-				{"$match": bson.M{"queryId": queryIdBson}},
+				{"$match": matching},
 				{"$group": bson.M{"_id": "$host", "count": bson.M{"$sum": 1}, "lastFound": bson.M{"$max": "$lastFound"}}},
 				{"$sort": bson.M{"lastFound": -1}},
+				{"$limit": 100},
 			})
 		iter := pipe.Iter()
 
@@ -68,12 +95,16 @@ func resultsHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "%s", jsonValue)
 		return
 	}
-
 	host := hostArr[0]
+
+	matching := bson.M{"queryId": queryIdBson, "host": host}
+	if useCategory {
+		matching = bson.M{"queryId": queryIdBson, "host": host, "category": category}
+	}
 
 	// Specifieke host
 	var result []queries.Result
-	err := c.Find(bson.M{"queryId": queryIdBson, "host": host}).Select(bson.M{"_id": 1, "queryId": 1, "lastFound": 1, "createdOn": 1, "occurrences": 1, "url": 1, "snippet": 1, "title": 1, "host": 1}).Sort("-lastFound").Limit(500).All(&result)
+	err := c.Find(matching).Select(bson.M{"_id": 1, "queryId": 1, "lastFound": 1, "createdOn": 1, "occurrences": 1, "url": 1, "snippet": 1, "title": 1, "host": 1, "category": 1}).Sort("-lastFound").Limit(200).All(&result)
 	if err != nil {
 		internalErrorHandler(w, r, err)
 		return
@@ -126,6 +157,89 @@ func resultHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 /**
+ * DELETE /result/{id}
+ */
+func deleteResultHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	id, found := vars["id"]
+	if !found {
+		internalErrorHandler(w, r, fmt.Errorf("id not set"))
+		return
+	}
+
+	idBson := bson.ObjectIdHex(id)
+
+	c := mongo.DB("lantern").C("results")
+	var result queries.Result
+	err := c.FindId(idBson).One(&result)
+	if err != nil {
+		if err == mgo.ErrNotFound {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "Invalid id.")
+		} else {
+			internalErrorHandler(w, r, err)
+		}
+
+		return
+	}
+
+	err = c.RemoveId(idBson)
+	if err != nil {
+		internalErrorHandler(w, r, err)
+		return
+	}
+	DecreaseResultCount(result.QueryId, 1)
+
+	fmt.Fprintf(w, "ok")
+}
+
+/**
+ * POST /result/{id}/set-category
+ */
+func setResultCategoryHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	id, found := vars["id"]
+	if !found {
+		internalErrorHandler(w, r, fmt.Errorf("id not set"))
+		return
+	}
+	idBson := bson.ObjectIdHex(id)
+
+	category, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		internalErrorHandler(w, r, err)
+		return
+	}
+
+	c := mongo.DB("lantern").C("results")
+
+	var result queries.Result
+	err = c.FindId(idBson).One(&result)
+
+	if err != nil {
+		if err == mgo.ErrNotFound {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "Invalid id.")
+		} else {
+			internalErrorHandler(w, r, err)
+		}
+
+		return
+	}
+
+	err = c.UpdateId(result.Id, bson.M{"$set": bson.M{"category": category}})
+
+	if err == nil {
+		fmt.Fprintf(w, "Success")
+		return
+	} else {
+		internalErrorHandler(w, r, err)
+	}
+}
+
+/**
  * /result
  */
 func newResultHandler(w http.ResponseWriter, r *http.Request) {
@@ -169,6 +283,10 @@ func newResultHandler(w http.ResponseWriter, r *http.Request) {
 		} else {
 			result.Id = foundResult.Id
 			fmt.Println("Already found this url for this query")
+
+			// Onaanpasbare velden
+			result.Category = foundResult.Category
+			result.CreatedOn = foundResult.CreatedOn
 
 			err = c.UpdateId(result.Id, result)
 			if err != nil {
