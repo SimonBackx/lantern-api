@@ -256,7 +256,7 @@ func newResultHandler(w http.ResponseWriter, r *http.Request) {
 	var result queries.Result
 	err = json.Unmarshal(str, &result)
 
-	if err != nil {
+	if err != nil || result.Url == nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Invalid result.")
 		return
@@ -270,10 +270,10 @@ func newResultHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Eerst kijken of deze URL + host niet al bestaat
 		var foundResult queries.Result
-		err := c.Find(bson.M{"queryId": result.QueryId, "host": result.Host, "url": result.Url}).One(&foundResult)
+		err := c.Find(bson.M{"queryId": result.QueryId, "host": result.Host, "snippet": result.Snippet}).One(&foundResult)
 
 		if err != nil {
-			fmt.Println("New unique url for this query")
+			fmt.Println("New unique snippet for this query")
 
 			err = c.Insert(result)
 
@@ -283,13 +283,42 @@ func newResultHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			IncreaseResultCount(result.QueryId)
+
 		} else {
 			result.Id = foundResult.Id
-			fmt.Println("Already found this url for this query")
+			fmt.Println("Already found this snippet for this query and host")
 
 			// Onaanpasbare velden
 			result.Category = foundResult.Category
 			result.CreatedOn = foundResult.CreatedOn
+
+			if result.Url == foundResult.Url {
+				// Content enzo mag aangepast orden
+				result.Urls = foundResult.Urls
+			} else {
+				// Content mag niet aangepast worden
+				result.Body = foundResult.Body
+
+				alreadyInUrls := false
+				for _, u := range foundResult.Urls {
+					if u == *result.Url {
+						alreadyInUrls = true
+						break
+					}
+				}
+				if !alreadyInUrls && len(foundResult.Urls) < 10 {
+					result.Urls = append(foundResult.Urls, *result.Url)
+				} else {
+					result.Urls = foundResult.Urls
+					// eigenlijk geen update meer nodig nu...? -> minder belasting op mongodb
+					fmt.Fprintf(w, "Success")
+					return
+				}
+
+				result.Url = foundResult.Url
+				result.Title = foundResult.Title
+			}
+
 			result.Occurrences = foundResult.Occurrences + 1
 
 			err = c.UpdateId(result.Id, result)

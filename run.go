@@ -118,7 +118,7 @@ func run(quit chan bool, finished chan bool) {
 		c.EnsureIndex(index)
 
 		index = mgo.Index{
-			Key:        []string{"host", "url", "queryId"},
+			Key:        []string{"queryId", "host", "snippet"},
 			Unique:     false,
 			DropDups:   false,
 			Background: false, // See notes.
